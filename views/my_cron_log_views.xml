@@ -31,7 +31,6 @@
     <field name="view_mode">tree,graph</field>
   </record>
 
-  <menuitem id="menu_my_cron_log_root" name="Cron Log" sequence="1000"/>
-  <menuitem id="menu_my_cron_log" name="Execution Log" parent="menu_cron_log_root" action="action_cron_execution_log"/>
+  <menuitem id="menu_my_cron_log" name="Schedule Action Log" parent="base.menu_automation" action="action_my_cron_log"/>
 </data>
 </odoo>
