@@ -1,0 +1,37 @@
+<odoo>
+<data>
+  <record id="view_my_cron_log_tree" model="ir.ui.view">
+    <field name="name">my.cron.log.tree</field>
+    <field name="model">my.cron.log</field>
+    <field name="arch" type="xml">
+      <tree>
+        <field name="cron_name"/>
+        <field name="start_time"/>
+        <field name="duration"/>
+        <field name="status"/>
+      </tree>
+    </field>
+  </record>
+
+  <record id="view_my_cron_log_graph" model="ir.ui.view">
+    <field name="name">my.cron.log.graph</field>
+    <field name="model">my.cron.log</field>
+    <field name="arch" type="xml">
+      <graph string="Cron Duration per Month" type="bar">
+        <field name="start_time" type="row" interval="month"/>
+        <field name="duration" type="measure"/>
+        <field name="cron_name" type="col"/>
+      </graph>
+    </field>
+  </record>
+
+  <record id="action_my_cron_log" model="ir.actions.act_window">
+    <field name="name">Cron Log</field>
+    <field name="res_model">my.cron.log</field>
+    <field name="view_mode">tree,graph</field>
+  </record>
+
+  <menuitem id="menu_my_cron_log_root" name="Cron Log" sequence="1000"/>
+  <menuitem id="menu_my_cron_log" name="Execution Log" parent="menu_cron_log_root" action="action_cron_execution_log"/>
+</data>
+</odoo>
