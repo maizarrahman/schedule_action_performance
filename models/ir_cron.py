@@ -17,12 +17,20 @@ class IrCron(models.Model):
         """Override to track execution time and status."""
         start = time.time()
         self.write({'last_status': 'running'})
+        start_time = datetime.utcnow()
         try:
             result = super()._callback()
             duration = time.time() - start
             self.write({
                 'last_duration': duration,
                 'last_status': 'success'
+            })
+            self.env['my.cron.log'].create({
+                'cron_id': self.id,
+                'cron_name': self.name,
+                'start_time': start_time,
+                'duration': duration,
+                'status': 'success',
             })
             _logger.info("Job `%s (ID %s)` done in %.2fs [success]",
                          self.name, self.id, duration)
@@ -32,6 +40,13 @@ class IrCron(models.Model):
             self.write({
                 'last_duration': duration,
                 'last_status': 'failed'
+            })
+            self.env['my.cron.log'].create({
+                'cron_id': self.id,
+                'cron_name': self.name,
+                'start_time': start_time,
+                'duration': duration,
+                'status': 'failed',
             })
             _logger.warning("Job `%s (ID %s)` failed after %.2fs: %s",
                             self.name, self.id, duration, str(e))
