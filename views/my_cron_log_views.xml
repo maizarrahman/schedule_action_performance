@@ -1,5 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
 <odoo>
-<data>
+
   <record id="view_my_cron_log_tree" model="ir.ui.view">
     <field name="name">my.cron.log.tree</field>
     <field name="model">my.cron.log</field>
@@ -8,8 +9,30 @@
         <field name="cron_name"/>
         <field name="start_time"/>
         <field name="duration"/>
+        <field name="avg_duration"/>
+        <field name="max_duration"/>
+        <field name="min_duration"/>
         <field name="status"/>
+        <field name="error_message"/>
       </tree>
+    </field>
+  </record>
+
+  <record id="view_my_cron_log_form" model="ir.ui.view">
+    <field name="name">my.cron.log.form</field>
+    <field name="model">my.cron.log</field>
+    <field name="arch" type="xml">
+      <form>
+        <sheet>
+          <group>
+            <field name="cron_name"/>
+            <field name="start_time"/>
+            <field name="duration"/>
+            <field name="status"/>
+            <field name="error_message"/>
+          </group>
+        </sheet>
+      </form>
     </field>
   </record>
 
@@ -25,12 +48,27 @@
     </field>
   </record>
 
-  <record id="action_my_cron_log" model="ir.actions.act_window">
-    <field name="name">Cron Log</field>
-    <field name="res_model">my.cron.log</field>
-    <field name="view_mode">tree,graph</field>
+  <record id="view_my_cron_log_search" model="ir.ui.view">
+    <field name="name">my.cron.log.search</field>
+    <field name="model">my.cron.log</field>
+    <field name="arch" type="xml">
+      <search>
+        <field name="cron_name"/>
+        <group expand="0" string="Group By">
+          <filter string="Cron Name" name="groupby_cron_name" context="{'group_by':'cron_name'}"/>
+        </group>
+      </search>
+    </field>
   </record>
 
-  <menuitem id="menu_my_cron_log" name="Schedule Action Log" parent="base.menu_automation" action="action_my_cron_log"/>
-</data>
+  <record id="action_my_cron_log" model="ir.actions.act_window">
+    <field name="name">Scheduled Actions Log</field>
+    <field name="res_model">my.cron.log</field>
+    <field name="view_mode">tree,form,graph</field>
+    <field name="search_view_id" ref="view_my_cron_log_search"/>
+    <field name="context">{'search_default_groupby_cron_name': 1}</field>
+  </record>
+
+  <menuitem id="menu_my_cron_log" name="Scheduled Actions Log" parent="base.menu_automation" action="action_my_cron_log"/>
+
 </odoo>

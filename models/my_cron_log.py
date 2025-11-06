@@ -1,4 +1,5 @@
-from odoo import models, fields
+# -*- coding: utf-8 -*-
+from odoo import models, fields, api
 
 class MyCronLog(models.Model):
     _name = 'my.cron.log'
@@ -13,3 +14,14 @@ class MyCronLog(models.Model):
         [('success', 'Success'), ('failed', 'Failed')],
         string="Status", required=True
     )
+    error_message = fields.Text(string="Error Message")
+    avg_duration = fields.Float(string="Average Duration (s)", compute='_copy_duration', group_operator="avg", store=True)
+    max_duration = fields.Float(string="Maximum Duration (s)", compute='_copy_duration', group_operator="max", store=True)
+    min_duration = fields.Float(string="Minimum Duration (s)", compute='_copy_duration', group_operator="min", store=True)
+
+    @api.depends('duration')
+    def _copy_duration(self):
+        for rec in self:
+            rec.avg_duration = rec.duration
+            rec.max_duration = rec.duration
+            rec.min_duration = rec.duration

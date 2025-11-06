@@ -1,53 +1,89 @@
+# -*- coding: utf-8 -*-
 import time
+import threading
+import psycopg2
 import logging
+import pytz
+import odoo
 from odoo import models, fields, api
+from datetime import datetime, timezone
+from dateutil.relativedelta import relativedelta
 
 _logger = logging.getLogger(__name__)
+
+_intervalTypes = {
+    'days': lambda interval: relativedelta(days=interval),
+    'hours': lambda interval: relativedelta(hours=interval),
+    'weeks': lambda interval: relativedelta(days=7*interval),
+    'months': lambda interval: relativedelta(months=interval),
+    'minutes': lambda interval: relativedelta(minutes=interval),
+}
 
 class IrCron(models.Model):
     _inherit = 'ir.cron'
 
-    last_duration = fields.Float(string="Last Duration (s)", readonly=True, help="Duration of last execution in seconds")
+    last_duration = fields.Float(string="Last Duration (s)", readonly=True, 
+        help="Duration of last execution in seconds")
     last_status = fields.Selection(
-        [('running', 'Running'), ('success', 'Success'), ('failed', 'Failed')],
+        [('success', 'Success'), ('failed', 'Failed')],
         string="Last Status", readonly=True,
     )
 
-    def _callback(self):
-        """Override to track execution time and status."""
-        start = time.time()
-        self.write({'last_status': 'running'})
-        start_time = datetime.utcnow()
+    @classmethod
+    def _process_job(cls, job_cr, job, cron_cr):
+        start_time = time.time()
         try:
-            result = super()._callback()
-            duration = time.time() - start
-            self.write({
-                'last_duration': duration,
-                'last_status': 'success'
-            })
-            self.env['my.cron.log'].create({
-                'cron_id': self.id,
-                'cron_name': self.name,
-                'start_time': start_time,
-                'duration': duration,
-                'status': 'success',
-            })
-            _logger.info("Job `%s (ID %s)` done in %.2fs [success]",
-                         self.name, self.id, duration)
-            return result
+            with api.Environment.manage():
+                cron = api.Environment(job_cr, job['user_id'], {
+                    'lastcall': fields.Datetime.from_string(job['lastcall'])
+                })[cls._name]
+                now = fields.Datetime.context_timestamp(cron, datetime.now())
+                nextcall = fields.Datetime.context_timestamp(cron, fields.Datetime.from_string(job['nextcall']))
+                numbercall = job['numbercall']
+
+                ok = False
+                while nextcall < now and numbercall:
+                    if numbercall > 0:
+                        numbercall -= 1
+                    if not ok or job['doall']:
+                        cron._callback(job['cron_name'], job['ir_actions_server_id'], job['id'])
+                    if numbercall:
+                        nextcall += _intervalTypes[job['interval_type']](job['interval_number'])
+                    ok = True
+                addsql = ''
+                if not numbercall:
+                    addsql = ', active=False'
+                end_time = time.time()
+                duration = end_time - start_time
+                cron_cr.execute("UPDATE ir_cron SET nextcall=%s, numbercall=%s, lastcall=%s, last_duration=%s, last_status=%s" + addsql + " WHERE id=%s", (
+                    fields.Datetime.to_string(nextcall.astimezone(pytz.UTC)),
+                    numbercall,
+                    fields.Datetime.to_string(now.astimezone(pytz.UTC)),
+                    duration,
+                    'success',
+                    job['id']
+                ))
+                cron_cr.execute("INSERT INTO my_cron_log (cron_id, cron_name, start_time, duration, status) VALUES (%s, %s, %s, %s, %s)", 
+                    (
+                        job['id'],
+                        job['cron_name'],
+                        datetime.now(timezone.utc),
+                        duration,
+                        'success',
+                    ))
+                cron.flush()
+                cron.invalidate_cache()
         except Exception as e:
-            duration = time.time() - start
-            self.write({
-                'last_duration': duration,
-                'last_status': 'failed'
-            })
-            self.env['my.cron.log'].create({
-                'cron_id': self.id,
-                'cron_name': self.name,
-                'start_time': start_time,
-                'duration': duration,
-                'status': 'failed',
-            })
-            _logger.warning("Job `%s (ID %s)` failed after %.2fs: %s",
-                            self.name, self.id, duration, str(e))
-            raise  # re-raise so Odoo handles it as usual
+            cron_cr.execute("UPDATE ir_cron SET last_status='failed' WHERE id=%s", (job['id'],))
+            cron_cr.execute("INSERT INTO my_cron_log (cron_id, cron_name, start_time, duration, status, error_message) VALUES (%s, %s, %s, %s, %s, %s)", 
+                (
+                    job['id'],
+                    job['cron_name'],
+                    datetime.now(timezone.utc),
+                    duration,
+                    'failed',
+                    str(e),
+                ))
+        finally:
+            job_cr.commit()
+            cron_cr.commit()

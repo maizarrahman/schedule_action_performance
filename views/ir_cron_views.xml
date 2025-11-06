@@ -1,9 +1,9 @@
 <odoo>
   <data>
-    <record id="view_ir_cron_form_custom" model="ir.ui.view">
-      <field name="name">ir.cron.form.inherit.tracker</field>
+    <record id="view_ir_cron_with_last_duration_tree" model="ir.ui.view">
+      <field name="name">ir.cron.with.last_duration.tree</field>
       <field name="model">ir.cron</field>
-      <field name="inherit_id" ref="base.ir_cron_form"/>
+      <field name="inherit_id" ref="base.ir_cron_view_tree"/>
       <field name="arch" type="xml">
         <xpath expr="//field[@name='numbercall']" position="after">
             <field name="last_duration"/>
@@ -11,5 +11,18 @@
         </xpath>
       </field>
     </record>
+
+    <record id="view_ir_cron_with_last_duration_form" model="ir.ui.view">
+      <field name="name">ir.cron.with.last_duration.form</field>
+      <field name="model">ir.cron</field>
+      <field name="inherit_id" ref="base.ir_cron_view_form"/>
+      <field name="arch" type="xml">
+        <xpath expr="//field[@name='numbercall']" position="after">
+            <field name="last_duration"/>
+            <field name="last_status"/>
+        </xpath>
+      </field>
+    </record>
+
   </data>
 </odoo>
