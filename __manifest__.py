@@ -7,4 +7,6 @@
     "depends": ["base"],
     "installable": True,
     "application": False,
+
+    'data': ['views/ir_cron_views.xml'],
 }
