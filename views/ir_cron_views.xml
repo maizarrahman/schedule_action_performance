@@ -1,0 +1,15 @@
+<odoo>
+  <data>
+    <record id="view_ir_cron_form_custom" model="ir.ui.view">
+      <field name="name">ir.cron.form.inherit.tracker</field>
+      <field name="model">ir.cron</field>
+      <field name="inherit_id" ref="base.ir_cron_form"/>
+      <field name="arch" type="xml">
+        <xpath expr="//field[@name='numbercall']" position="after">
+            <field name="last_duration"/>
+            <field name="last_status"/>
+        </xpath>
+      </field>
+    </record>
+  </data>
+</odoo>
