@@ -5,7 +5,7 @@
     <field name="name">my.cron.log.tree</field>
     <field name="model">my.cron.log</field>
     <field name="arch" type="xml">
-      <tree>
+      <tree create="0" edit="0">
         <field name="cron_name"/>
         <field name="start_time"/>
         <field name="duration"/>
@@ -22,7 +22,7 @@
     <field name="name">my.cron.log.form</field>
     <field name="model">my.cron.log</field>
     <field name="arch" type="xml">
-      <form>
+      <form create="0" edit="0">
         <sheet>
           <group>
             <field name="cron_name"/>

@@ -19,7 +19,12 @@
       <field name="arch" type="xml">
         <xpath expr="//field[@name='numbercall']" position="after">
             <field name="last_duration"/>
-            <field name="last_status"/>
+            <label for="last_status" string="Last Status"/>
+            <div class="o_row">
+                <field name="last_status" class="oe_inline"/>
+                <button name="button_show_logs" string="Show Logs" type="object"
+                  class="oe_inline fa fa-arrow-right oe_link"/>
+            </div>
         </xpath>
       </field>
     </record>
