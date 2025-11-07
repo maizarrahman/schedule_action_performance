@@ -1,10 +1,7 @@
 # -*- coding: utf-8 -*-
 import time
-import threading
-import psycopg2
 import logging
 import pytz
-import odoo
 from odoo import models, fields, api
 from datetime import datetime, timezone
 from dateutil.relativedelta import relativedelta
@@ -27,10 +24,22 @@ class IrCron(models.Model):
     last_status = fields.Selection(
         [('success', 'Success'), ('failed', 'Failed')],
         string="Last Status", readonly=True,
+        help="Status of last execution"
     )
+
+    def button_show_logs(self):
+        return {
+            'name': 'Logs',
+            'type': 'ir.actions.act_window',
+            'res_model': 'my.cron.log',
+            'view_mode': 'tree,form',
+            'domain': [('cron_id', '=', self.id)],
+            'context': {'search_default_groupby_cron_name': 1},
+        }
 
     @classmethod
     def _process_job(cls, job_cr, job, cron_cr):
+        start_date = datetime.now(timezone.utc)
         start_time = time.time()
         try:
             with api.Environment.manage():
@@ -63,24 +72,26 @@ class IrCron(models.Model):
                     'success',
                     job['id']
                 ))
-                cron_cr.execute("INSERT INTO my_cron_log (cron_id, cron_name, start_time, duration, status) VALUES (%s, %s, %s, %s, %s)", 
+                cron_cr.execute("INSERT INTO my_cron_log (cron_id, cron_name, start_time, duration, status, avg_duration, max_duration, min_duration) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", 
                     (
                         job['id'],
                         job['cron_name'],
-                        datetime.now(timezone.utc),
+                        start_date,
                         duration,
                         'success',
+                        duration,
+                        duration,
+                        duration
                     ))
                 cron.flush()
                 cron.invalidate_cache()
         except Exception as e:
             cron_cr.execute("UPDATE ir_cron SET last_status='failed' WHERE id=%s", (job['id'],))
-            cron_cr.execute("INSERT INTO my_cron_log (cron_id, cron_name, start_time, duration, status, error_message) VALUES (%s, %s, %s, %s, %s, %s)", 
+            cron_cr.execute("INSERT INTO my_cron_log (cron_id, cron_name, start_time, status, error_message) VALUES (%s, %s, %s, %s, %s)", 
                 (
                     job['id'],
                     job['cron_name'],
-                    datetime.now(timezone.utc),
-                    duration,
+                    start_date,
                     'failed',
                     str(e),
                 ))
