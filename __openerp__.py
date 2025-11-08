@@ -1,7 +1,7 @@
 {
     "name": "Schedule Action Performance",
     "summary": "Track execution time and succesfulness of each ir.cron job",
-    "version": "13.0.1.0.0",
+    "version": "8.0.1.0.0",
     "author": "Maizar, ChatGPT",
     "category": "Technical",
     "depends": ["base"],

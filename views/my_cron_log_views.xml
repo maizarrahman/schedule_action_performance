@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<odoo>
-
+<openerp>
+<data>
   <record id="view_my_cron_log_tree" model="ir.ui.view">
     <field name="name">my.cron.log.tree</field>
     <field name="model">my.cron.log</field>
@@ -70,5 +70,5 @@
   </record>
 
   <menuitem id="menu_my_cron_log" name="Scheduled Actions Log" parent="base.menu_automation" action="action_my_cron_log"/>
-
-</odoo>
+</data>
+</openerp>

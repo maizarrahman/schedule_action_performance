@@ -2,13 +2,16 @@
 import time
 import logging
 import pytz
-from odoo import models, fields, api
-from datetime import datetime, timezone
+from openerp.osv import fields, osv
+from datetime import datetime
 from dateutil.relativedelta import relativedelta
+from openerp import SUPERUSER_ID, api
+from openerp.tools import DEFAULT_SERVER_DATETIME_FORMAT
 
 _logger = logging.getLogger(__name__)
 
 _intervalTypes = {
+    'work_days': lambda interval: relativedelta(days=interval),
     'days': lambda interval: relativedelta(days=interval),
     'hours': lambda interval: relativedelta(hours=interval),
     'weeks': lambda interval: relativedelta(days=7*interval),
@@ -16,38 +19,35 @@ _intervalTypes = {
     'minutes': lambda interval: relativedelta(minutes=interval),
 }
 
-class IrCron(models.Model):
+class IrCron(osv.osv):
     _inherit = 'ir.cron'
 
-    last_duration = fields.Float(string="Last Duration (s)", readonly=True, 
-        help="Duration of last execution in seconds")
-    last_status = fields.Selection(
-        [('success', 'Success'), ('failed', 'Failed')],
-        string="Last Status", readonly=True,
-        help="Status of last execution"
-    )
+    _columns = {
+        'last_duration': fields.float("Last Duration (s)", readonly=True, 
+            help="Duration of last execution in seconds"),
+        'last_status': fields.selection(
+            [('success', 'Success'), ('failed', 'Failed')],
+            "Last Status", readonly=True,
+            help="Status of last execution"
+        ),
+    }
 
-    def button_show_logs(self):
+    def button_show_logs(self, cr, uid, ids, context=None):
         return {
             'name': 'Logs',
             'type': 'ir.actions.act_window',
             'res_model': 'my.cron.log',
             'view_mode': 'tree,form',
-            'domain': [('cron_id', '=', self.id)],
+            'domain': [('cron_id', 'in', ids)],
             'context': {'search_default_groupby_cron_name': 1},
         }
 
-    @classmethod
-    def _process_job(cls, job_cr, job, cron_cr):
-        start_date = datetime.now(timezone.utc)
+    def _process_job(self, job_cr, job, cron_cr):
         start_time = time.time()
         try:
             with api.Environment.manage():
-                cron = api.Environment(job_cr, job['user_id'], {
-                    'lastcall': fields.Datetime.from_string(job['lastcall'])
-                })[cls._name]
-                now = fields.Datetime.context_timestamp(cron, datetime.now())
-                nextcall = fields.Datetime.context_timestamp(cron, fields.Datetime.from_string(job['nextcall']))
+                now = fields.datetime.context_timestamp(job_cr, job['user_id'], datetime.now())
+                nextcall = fields.datetime.context_timestamp(job_cr, job['user_id'], datetime.strptime(job['nextcall'], DEFAULT_SERVER_DATETIME_FORMAT))
                 numbercall = job['numbercall']
 
                 ok = False
@@ -55,7 +55,7 @@ class IrCron(models.Model):
                     if numbercall > 0:
                         numbercall -= 1
                     if not ok or job['doall']:
-                        cron._callback(job['cron_name'], job['ir_actions_server_id'], job['id'])
+                        self._callback(job_cr, job['user_id'], job['model'], job['function'], job['args'], job['id'])
                     if numbercall:
                         nextcall += _intervalTypes[job['interval_type']](job['interval_number'])
                     ok = True
@@ -64,10 +64,9 @@ class IrCron(models.Model):
                     addsql = ', active=False'
                 end_time = time.time()
                 duration = end_time - start_time
-                cron_cr.execute("UPDATE ir_cron SET nextcall=%s, numbercall=%s, lastcall=%s, last_duration=%s, last_status=%s" + addsql + " WHERE id=%s", (
-                    fields.Datetime.to_string(nextcall.astimezone(pytz.UTC)),
+                cron_cr.execute("UPDATE ir_cron SET nextcall=%s, numbercall=%s, last_duration=%s, last_status=%s" + addsql + " WHERE id=%s", (
+                    nextcall.astimezone(pytz.UTC).strftime(DEFAULT_SERVER_DATETIME_FORMAT),
                     numbercall,
-                    fields.Datetime.to_string(now.astimezone(pytz.UTC)),
                     duration,
                     'success',
                     job['id']
@@ -75,23 +74,22 @@ class IrCron(models.Model):
                 cron_cr.execute("INSERT INTO my_cron_log (cron_id, cron_name, start_time, duration, status, avg_duration, max_duration, min_duration) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", 
                     (
                         job['id'],
-                        job['cron_name'],
-                        start_date,
+                        job['name'],
+                        now.astimezone(pytz.UTC).strftime(DEFAULT_SERVER_DATETIME_FORMAT),
                         duration,
                         'success',
                         duration,
                         duration,
                         duration
                     ))
-                cron.flush()
-                cron.invalidate_cache()
+                self.invalidate_cache(job_cr, SUPERUSER_ID)
         except Exception as e:
             cron_cr.execute("UPDATE ir_cron SET last_status='failed' WHERE id=%s", (job['id'],))
             cron_cr.execute("INSERT INTO my_cron_log (cron_id, cron_name, start_time, status, error_message) VALUES (%s, %s, %s, %s, %s)", 
                 (
                     job['id'],
-                    job['cron_name'],
-                    start_date,
+                    job['name'],
+                    now.astimezone(pytz.UTC).strftime(DEFAULT_SERVER_DATETIME_FORMAT),
                     'failed',
                     str(e),
                 ))
