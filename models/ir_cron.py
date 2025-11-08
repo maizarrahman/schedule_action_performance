@@ -39,7 +39,6 @@ class IrCron(models.Model):
 
     @classmethod
     def _process_job(cls, job_cr, job, cron_cr):
-        start_date = datetime.now(timezone.utc)
         start_time = time.time()
         try:
             with api.Environment.manage():
@@ -49,7 +48,7 @@ class IrCron(models.Model):
                 now = fields.Datetime.context_timestamp(cron, datetime.now())
                 nextcall = fields.Datetime.context_timestamp(cron, fields.Datetime.from_string(job['nextcall']))
                 numbercall = job['numbercall']
-
+                utc_now = fields.Datetime.to_string(now.astimezone(pytz.UTC)),
                 ok = False
                 while nextcall < now and numbercall:
                     if numbercall > 0:
@@ -76,7 +75,7 @@ class IrCron(models.Model):
                     (
                         job['id'],
                         job['cron_name'],
-                        start_date,
+                        utc_now,
                         duration,
                         'success',
                         duration,
@@ -91,7 +90,7 @@ class IrCron(models.Model):
                 (
                     job['id'],
                     job['cron_name'],
-                    start_date,
+                    utc_now,
                     'failed',
                     str(e),
                 ))
